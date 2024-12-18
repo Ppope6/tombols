@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<head>
+  <title>Gioco della Tombola</title>
+  <style>
+    body {  
+      font-family: sans-serif;
+      text-align: center;
+    }
+    .cartelle-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .cartella {
+      border: 1px solid #000;
+      margin: 10px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+    .cartella div {
+      text-align: center;
+      padding: 5px;
+      border: 1px solid #ddd;
+      background-color: #ffffff;
+    }
+    .estrazione {
+      //font-size: 24px;
+      margin: 20px 0;
+      font-weight: bold;
+    }
+    .popup {
+      position: fixed;
+      font-weight: bold;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #ffffff;
+      padding: 20px;
+      display: none;
+    }
+    .risultati{
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gioco della Tombola</h1>
+  <button id="estrai">Estrai Numero</button>
+  <div class="estrazione">Numero estratto: <span id="numero-estratto">-</span></div>
+  <div class="risultati" id="risultati"></div>
+  <div class="cartelle-container" id="cartelle-container"></div>
+  <div class="popup" id="popup"></div>
+
+  <script>
+    //Array che contiene i numeri estratti
+    const estratti = [];
+    //Array che contiene le cartelle
+    const cartelle = [];
+    //Array che contiene i dati dei risultati
+    const risultatiSegnalati = {
+      Ambo: false,
+      Terna: false,
+      Quaterna: false,
+      Cinquina: false,
+      Tombola: false,
+    };
+    //Numero massimo di numeri
+    const numeriMax = 90;
+
+    // Genera 6 cartelle (3x5 ciascuna)
+    for (let i = 0; i < 6; i++) {
+      cartelle.push(generaCartella());
+    }
+
+    // Stampa le cartelle
+    const container = document.getElementById("cartelle-container");
+    cartelle.forEach((cartella, index) => {
+      const divCartella = document.createElement("div");
+      divCartella.className = "cartella";
+      divCartella.id = `cartella-${index}`;
+      cartella.forEach((row) => {
+        row.forEach((num) => {
+          const cell = document.createElement("div");
+          cell.textContent = num;
+          cell.dataset.numero = num;
+          divCartella.appendChild(cell);
+        });
+      });
+      container.appendChild(divCartella);
+    });
+
+    // Estrai numero
+    document.getElementById("estrai").addEventListener("click", estraiNumero);
+    function estraiNumero() {
+      const popup = document.getElementById("popup");
+      popup.style.display = "none";
+
+    //Se vengono estratti tutti i numeri
+      if (estratti.length === numeriMax) {
+        alert("Tutti i numeri sono stati estratti! Il gioco e' terminato");
+        return;
+      }
+      let numero;
+
+      //Generatore di numeri casuali
+      do {
+        numero = Math.floor(Math.random() * numeriMax) + 1;
+      } while (estratti.includes(numero));
+      estratti.push(numero);
+      document.getElementById("numero-estratto").textContent = numero;
+
+      // Evidenzia numero estratto
+      document.querySelectorAll(`[data-numero="${numero}"]`).forEach((cell) => {
+        cell.style.backgroundColor = "gold";
+      });
+
+      // Controlla risultati
+      controllaRisultati();
+    }
+    function controllaRisultati() {
+      cartelle.forEach((cartella, index) => {
+        const risultati = analizzaCartella(cartella);
+        //Visione degli eventi legati ai risultati
+        ["Ambo", "Terna", "Quaterna", "Cinquina", "Tombola"].forEach((tipo) => {
+          if (risultati[tipo] && !risultatiSegnalati[tipo]) {
+            if(tipo !== "Tombola"){
+              mostraPopup(`${tipo} per il giocatore ${index + 1}!`);
+              segnaRisultati(`| ${tipo}: giocatore ${index + 1} |`);
+              risultatiSegnalati[tipo] = true
+            }
+            //Se un giocatore fa tombola
+            else {
+              mostraPopup(`TOMBOLA per il giocatore ${index + 1}!`);
+              terminaGioco(index + 1); 
+            }
+          }
+        });
+      });
+    }
+    //Scrive i risultati dei giocatori
+    function segnaRisultati(messaggio){
+      const risultati = document.getElementById("risultati");
+      risultati.textContent += (messaggio);
+    }
+     // Disabilita il bottone di estrazione
+    function terminaGioco(giocatore) {
+      document.getElementById("estrai").disabled = true;
+      document.getElementById("estrai").textContent = "TOMBOLA!"
+}
+    //Mostra i popup
+    function mostraPopup(messaggio) {
+      const popup = document.getElementById("popup");
+      popup.textContent = messaggio;
+      popup.style.display = "block";
+    }
+
+    function analizzaCartella(cartella) {
+      const risultati = { Ambo: false, Terna: false, Quaterna: false, Cinquina: false, Tombola: false };
+
+      cartella.forEach((row) => {
+        const numeriEstratti = row.filter((num) => estratti.includes(num)).length;
+        if (numeriEstratti === 2) risultati.Ambo = true;
+        if (numeriEstratti === 3) risultati.Terna = true;
+        if (numeriEstratti === 4) risultati.Quaterna = true;
+        if (numeriEstratti === 5) risultati.Cinquina = true;
+      });
+
+      const tuttiEstratti = cartella.flat().filter((num) => estratti.includes(num)).length === 15;
+      if (tuttiEstratti) risultati.Tombola = true;
+
+      return risultati;
+    }
+
+    function generaCartella() {
+      const cartella = Array.from({ length: 3 }, () => Array(5).fill(0));
+      const colonne = Array.from({ length: 5 }, (_, i) =>
+        Array.from({ length: 18 }, (_, j) => j + 1 + i * 18).filter((n) => n <= numeriMax)
+      );
+
+      for (let col = 0; col < 5; col++) {
+        const numeri = [];
+        for (let i = 0; i < 3; i++) {
+          let num;
+          do {
+            num = colonne[col][Math.floor(Math.random() * colonne[col].length)];
+          } while (numeri.includes(num));
+          numeri.push(num);
+        }
+        numeri.sort((a, b) => a - b);
+        numeri.forEach((num, i) => (cartella[i][col] = num));
+      }
+
+      return cartella;
+    }
+  </script>
+</body>
+</html> 
+
